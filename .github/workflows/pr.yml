@@ -6,15 +6,24 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.config.os }}
+    strategy:
+      matrix:
+        config:
+#          - { name: "Windows MSVC", os: windows-latest, cc: "cl", cxx: "cl" }
+          - { name: "Ubuntu GCC Debug", os: ubuntu-latest, cc: "gcc", cxx: "g++", build_type: "Debug", preset: "conan-debug"}
+          - { name: "Ubuntu GCC Release", os: ubuntu-latest, cc: "gcc", cxx: "g++", build_type: "Release", preset: "conan-release" }
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Setup Ninja
+        uses: lukka/get-cmake@latest
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-          cache: 'pip'
 
       - name: Setup Conan Client
         uses: conan-io/setup-conan@v1.2.0
@@ -22,14 +31,14 @@ jobs:
           use_venv: true
 
       - name: Install Conan dependencies
-        run: conan install . --build=missing
+        run: conan install . --build=missing -s build_type=${{ matrix.config.build_type }}
 
       - name: Build Project
-        uses: threeal/cmake-action@v2.1.0
+        uses: lukka/run-cmake@v10
         with:
-          generator: Ninja
-          cxx-compiler: g++
-          c-compiler: gcc
+          configurePreset: ${{ matrix.config.preset }}
+          buildPreset: ${{ matrix.config.preset }}
+          testPreset: ${{ matrix.config.preset }}
 
-      - name: Test Project
-        uses: threeal/ctest-action@v1.1.0
+#      - name: Test Project
+#        uses: threeal/ctest-action@v1.1.0
