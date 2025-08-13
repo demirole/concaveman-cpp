@@ -1,9 +1,15 @@
+#include <algorithm>
+#include <array>
+#include <memory>
 #include <random>
-#include <tuple>
+#include <set>
+#include <vector>
+#include <queue>
 
-#include "concaveman-cpp/concaveman.h"
+#include <gtest/gtest.h>
+#include <concaveman-cpp/concaveman.h>
 
-static void test_00_rtree_basic() {
+TEST(RtreeTest, basic) {
     typedef rtree<float, 2, 8, intptr_t> myrtree;
     typedef rtree<float, 2, 16, intptr_t> myrtree2;
     typedef rtree<float, 2, 5, intptr_t> myrtree3;
@@ -15,6 +21,7 @@ static void test_00_rtree_basic() {
     std::mt19937_64 rng(std::random_device{}());
     std::uniform_int_distribution<long> dist(0, std::numeric_limits<long>::max());
 
+    // myrtree::bounds_type bounds ;
     for (auto i = 0; i < 500; i++) {
         auto a = static_cast<float>(dist(rng) % 100);
         auto b = static_cast<float>(dist(rng) % 100);
@@ -27,67 +34,56 @@ static void test_00_rtree_basic() {
         tree3.insert(i, bounds);
         tree4.insert(i, bounds);
     }
-    // tree.insert(1, { 1, 2, 1, 2 });
-    // tree.insert(2, { 0, 1, 0, 1 });
-    // tree.insert(2, { 0, 1, 0, 3 });
     auto isect = tree.intersection({0, 0, 50, 50});
     auto isect2 = tree2.intersection({0, 0, 50, 50});
     std::set<intptr_t> s, s2;
-    for (auto &node : isect)
+    for (auto &node : isect) {
         s.insert(node.get().data());
-    for (auto &node : isect2)
+    }
+    for (auto &node : isect2) {
         s2.insert(node.get().data());
-    std::cout << s.size() << " " << (s == s2) << std::endl;
-    for (auto data : s)
-        std::cout << data << " ";
-    std::cout << std::endl;
+    }
+    EXPECT_EQ(s, s2);
 }
 
-void test_01_rtree_erase() {
+TEST(RtreeTest, erase) {
     typedef rtree<float, 2, 8, intptr_t> myrtree;
     myrtree tree;
-    tree.insert(1, { 1, 2, 1, 2 });
-    tree.insert(2, { 0, 1, 0, 1 });
-    tree.insert(3, { 0, 1, 0, 3 });
-    std::cout << tree.to_string() << std::endl << std::endl;
-    tree.erase(1, { 1, 2, 1, 2 });
-    tree.erase(2, { 0, 1, 0, 1 });
-    std::cout << tree.to_string() << std::endl << std::endl;
-    tree.insert(1, { 1, 2, 1, 2 });
-    tree.insert(2, { 0, 1, 0, 1 });
-    std::cout << tree.to_string() << std::endl << std::endl;
+    EXPECT_NO_THROW(tree.insert(1, { 1, 2, 1, 2 }));
+    EXPECT_NO_THROW(tree.insert(2, { 0, 1, 0, 1 }));
+    EXPECT_NO_THROW(tree.insert(3, { 0, 1, 0, 3 }));
+    EXPECT_NO_THROW(tree.insert(3, { 0, 1, 0, 3 }));
+    EXPECT_NO_THROW(tree.erase(1, { 1, 2, 1, 2 }));
+    EXPECT_NO_THROW(tree.erase(2, { 0, 1, 0, 1 }));
+    EXPECT_NO_THROW(tree.insert(1, { 1, 2, 1, 2 }));
+    EXPECT_NO_THROW(tree.insert(2, { 0, 1, 0, 1 }));
 }
 
-static void test_03_sqSegDist() {
-    std::cout << "test_03_sqSegDist() : ";
+//void test_02_node_deleter() {
+//    std::cout << "test_02_node() : ";
+//    auto last = new Node<double>({ 5.0, 6.0 });
+//    last->insert({ 4.0, 3.0 });
+//    last->insert({ 1.0, 2.0 });
+//    last->free();
+//    delete last;
+//    std::cout << "PASSED" << std::endl;
+//}
 
+TEST(RtreeTest, sqSegDist) {
     auto a = sqSegDist<double>({ 0, 0 }, { 0, 1 }, { 1, 0 });
-    std::cout << "a: " << a << std::endl;
-    assert(a == 0.5);
+    EXPECT_EQ(a, 0.5);
 
     auto b = sqSegDist<double>({ 0, 1 }, { 0, 1 }, { 1, 0 });
-    std::cout << "b: " << b << std::endl;
-    assert(b == 0);
+    EXPECT_EQ(b, 0);
 
     auto c = sqSegDist<double>({ -1, 0 }, { 0, 0 }, { 0, 1 });
-    std::cout << "c: " << c << std::endl;
-    assert(c == 1);
+    EXPECT_EQ(c, 1);
 
     auto d = sqSegDist<double>({ -1, -1 }, { 0, 0 }, { 0, 1 });
-    std::cout << "d: " << d << std::endl;
-    assert(d == 2);
-
-    std::cout << "PASSED" << std::endl;
+    EXPECT_EQ(d, 2);
 }
 
-
-static void test_04_sqSegSegDist() {
-
-}
-
-
-static void test_05_CircularList() {
-    std::cout << "test_05_CircularList() : ";
+TEST(RtreeTest, CircularList) {
     typedef double T;
     typedef Node<T> node_type;
     typedef typename node_type::point_type point_type;
@@ -95,18 +91,14 @@ static void test_05_CircularList() {
     auto a = lst->insert(nullptr, point_type { 1, 2 });
     auto b = a->insert(point_type { 3, 4 });
     auto c = b->insert(point_type { 5, 6 });
-    std::cout << a->data().p[0] << " " <<
-        b->data().p[0] << " " << c->data().p[0] << std::endl;
     {
         std::unique_ptr<CircularList<node_type>> taker(std::move(lst));
     }
-    assert(lst.get() == nullptr);
-    std::cout << "PASSED" << std::endl;
+    EXPECT_EQ(lst.get(), nullptr);
 }
 
 
-static void test_06_priority_queue() {
-    std::cout << "test_06_priority_queue() : ";
+TEST(RtreeTest, priority_queue) {
     typedef double T;
     typedef Node<T> node_type;
     typedef std::tuple<T, node_type> tuple_type;
@@ -118,17 +110,20 @@ static void test_06_priority_queue() {
     queue.push(std::make_tuple(-10.0, node_type({ 7, 8 })));
     queue.push(std::make_tuple(-0.5, node_type({ 9, 10 })));
 
-    while (!queue.empty()) {
-        std::cout << std::get<0>(queue.top()) << std::endl;
-        queue.pop();
-    }
-
-    std::cout << "PASSED" << std::endl;
+    EXPECT_EQ(std::get<0>(queue.top()), -0.5);
+    queue.pop();
+    EXPECT_EQ(std::get<0>(queue.top()), -1.0);
+    queue.pop();
+    EXPECT_EQ(std::get<0>(queue.top()), -4.0);
+    queue.pop();
+    EXPECT_EQ(std::get<0>(queue.top()), -5.0);
+    queue.pop();
+    EXPECT_EQ(std::get<0>(queue.top()), -10.0);
+    queue.pop();
 }
 
 
-static void test_07_concaveman() {
-    std::cout << "test_07_concaveman() : ";
+TEST(RtreeTest, concaveman) {
     typedef double T;
     typedef std::array<T, 2> point_type;
     std::vector<point_type> points {
@@ -141,42 +136,19 @@ static void test_07_concaveman() {
         0, 1, 3
     };
     auto concave = concaveman<T, 16>(points, hull, 2, 1);
-    for (auto &p : concave) {
-        std::cout << p[0] << " " << p[1] << std::endl;
-    }
-    std::cout << "PASSED" << std::endl;
 }
 
 
-static void test_08_intersects() {
-    std::cout << "test_08_intersects() : ";
-
-    std::cout << intersects<double>({ 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 }) << std::endl;
-    std::cout << intersects<double>({ 0, 0 }, { 1, 0 }, { 0, 0 }, { 1, 0 }) << std::endl;
-    std::cout << intersects<double>({ 0, 0 }, { 1, 0 }, { 0.5, -0.5 }, { 0.5, 0.5 }) << std::endl;
-
-    std::cout << "PASSED" << std::endl;
+TEST(RtreeTest, intersects) {
+    EXPECT_EQ(intersects<double>({ 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 }), 0);
+    EXPECT_EQ(intersects<double>({ 0, 0 }, { 1, 0 }, { 0, 0 }, { 1, 0 }), 0);
+    EXPECT_EQ(intersects<double>({ 0, 0 }, { 1, 0 }, { 0.5, -0.5 }, { 0.5, 0.5 }), 1);
 }
 
 
-static void test_09_orient2d() {
-    std::cout << "test_09_orient2d() : ";
-
-    std::cout << orient2d<double>({ 0, 0 }, { 1, 0 }, { 0, 1 }) << std::endl;
-    std::cout << orient2d<double>({ 0, 0 }, { 1, 0 }, { 0, 0 }) << std::endl;
-    std::cout << orient2d<double>({ 0, 0 }, { 1, 0 }, { 0.5, -0.5 }) << std::endl;
-    std::cout << orient2d<double>({ 0, 1 }, { 1, 0 }, { 0, 0 }) << std::endl;
-
-    std::cout << "PASSED" << std::endl;
-}
-
-int main() {
-    test_00_rtree_basic();
-    test_01_rtree_erase();
-    test_03_sqSegDist();
-    test_05_CircularList();
-    test_06_priority_queue();
-    test_07_concaveman();
-    test_08_intersects();
-    test_09_orient2d();
+TEST(RtreeTest, orient2d) {
+    EXPECT_EQ(orient2d<double>({ 0, 0 }, { 1, 0 }, { 0, 1 }), -1.);
+    EXPECT_EQ(orient2d<double>({ 0, 0 }, { 1, 0 }, { 0, 0 }), 0);
+    EXPECT_EQ(orient2d<double>({ 0, 0 }, { 1, 0 }, { 0.5, -0.5 }), 0.5);
+    EXPECT_EQ(orient2d<double>({ 0, 1 }, { 1, 0 }, { 0, 0 }), 1.0);
 }
