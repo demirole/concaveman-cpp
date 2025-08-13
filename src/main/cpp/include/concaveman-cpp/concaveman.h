@@ -24,12 +24,6 @@
 //#define DEBUG // uncomment to dump debug info to screen
 //#define DEBUG_2 // uncomment to dump second-level debug info to screen
 
-template<typename T, typename... Args>
-std::unique_ptr<T> make_unique(Args&&... args) {
-    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
-}
-
-
 template<class T> class compare_first {
 public:
     bool operator()(const T &a, const T &b) {
@@ -209,7 +203,7 @@ public:
 
         m_bounds = updated_bounds(bounds);
         if (m_children.size() < MAX_CHILDREN) {
-            auto r = make_unique<type>(data, bounds);
+            auto r = std::make_unique<type>(data, bounds);
             m_children.push_back(std::move(r));
             return;
         }
@@ -231,7 +225,7 @@ public:
             return;
         }
 
-        auto leaf = make_unique<type>(best_child.get().data(),
+        auto leaf = std::make_unique<type>(best_child.get().data(),
             best_child.get().bounds());
         best_child.get().m_is_leaf = false;
         best_child.get().m_data = data_type();

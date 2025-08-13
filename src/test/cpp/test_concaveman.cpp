@@ -1,7 +1,7 @@
-#if 0
-g++ -std=c++11 -I../../../main/cpp -o test_concaveman
-exit 0
-#endif
+#include <random>
+#include <tuple>
+
+#include "concaveman-cpp/concaveman.h"
 
 static void test_00_rtree_basic() {
     typedef rtree<float, 2, 8, intptr_t> myrtree;
@@ -12,20 +12,20 @@ static void test_00_rtree_basic() {
     myrtree2 tree2;
     myrtree3 tree3;
     myrtree4 tree4;
+    std::mt19937_64 rng(std::random_device{}());
+    std::uniform_int_distribution<long> dist(0, std::numeric_limits<long>::max());
 
-    // myrtree::bounds_type bounds ;
     for (auto i = 0; i < 500; i++) {
-        auto a = static_cast<float>(random() % 100);
-        auto b = static_cast<float>(random() % 100);
-        auto c = static_cast<float>(random() % 100);
-        auto d = static_cast<float>(random() % 100);
+        auto a = static_cast<float>(dist(rng) % 100);
+        auto b = static_cast<float>(dist(rng) % 100);
+        auto c = static_cast<float>(dist(rng) % 100);
+        auto d = static_cast<float>(dist(rng) % 100);
         myrtree::bounds_type bounds = { std::min(a, c), std::min(b, d),
             std::max(a, c), std::max(b, d) };
         tree.insert(i, bounds);
         tree2.insert(i, bounds);
         tree3.insert(i, bounds);
         tree4.insert(i, bounds);
-        // std::cout << "i: " << i << ", tree: " << tree.to_string() << std::endl;
     }
     // tree.insert(1, { 1, 2, 1, 2 });
     // tree.insert(2, { 0, 1, 0, 1 });
@@ -41,11 +41,10 @@ static void test_00_rtree_basic() {
     for (auto data : s)
         std::cout << data << " ";
     std::cout << std::endl;
-    // std::cout << tree.to_string() << std::endl;
 }
 
-/* void test_01_rtree_erase() {
-    typedef rtree<float, 2, 8> myrtree;
+void test_01_rtree_erase() {
+    typedef rtree<float, 2, 8, intptr_t> myrtree;
     myrtree tree;
     tree.insert(1, { 1, 2, 1, 2 });
     tree.insert(2, { 0, 1, 0, 1 });
@@ -57,20 +56,7 @@ static void test_00_rtree_basic() {
     tree.insert(1, { 1, 2, 1, 2 });
     tree.insert(2, { 0, 1, 0, 1 });
     std::cout << tree.to_string() << std::endl << std::endl;
-} */
-
-/* void test_02_node_deleter() {
-    std::cout << "test_02_node() : ";
-    typedef double T;
-    typedef Node<T> node_type;
-    typename node_type::type_ptr last = nullptr;
-    last = new node_type({ 5.0, 6.0 });
-    last->insert({ 4.0, 3.0 });
-    last->insert({ 1.0, 2.0 });
-    last->free();
-    delete last;
-    std::cout << "PASSED" << std::endl;
-} */
+}
 
 static void test_03_sqSegDist() {
     std::cout << "test_03_sqSegDist() : ";
@@ -105,7 +91,7 @@ static void test_05_CircularList() {
     typedef double T;
     typedef Node<T> node_type;
     typedef typename node_type::point_type point_type;
-    auto lst = make_unique<CircularList<node_type>>();
+    auto lst = std::make_unique<CircularList<node_type>>();
     auto a = lst->insert(nullptr, point_type { 1, 2 });
     auto b = a->insert(point_type { 3, 4 });
     auto c = b->insert(point_type { 5, 6 });
@@ -184,18 +170,13 @@ static void test_09_orient2d() {
     std::cout << "PASSED" << std::endl;
 }
 
-#if 0
-
 int main() {
-    // test_00_rtree_basic();
-    // test_01_rtree_erase();
-    // test_02_node_deleter();
-    // test_03_sqSegDist();
-    // test_05_CircularList();
-    // test_06_priority_queue();
+    test_00_rtree_basic();
+    test_01_rtree_erase();
+    test_03_sqSegDist();
+    test_05_CircularList();
+    test_06_priority_queue();
     test_07_concaveman();
-    // test_08_intersects();
-    // test_09_orient2d();
+    test_08_intersects();
+    test_09_orient2d();
 }
-
-#endif
