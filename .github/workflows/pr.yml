@@ -6,14 +6,11 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: ${{ matrix.config.os }}
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        config:
-          - { name: "Windows MSVC Debug", os: windows-latest, cc: "cl", cxx: "cl", build_type: "Debug", preset: "conan-debug" }
-          - { name: "Windows MSVC Release", os: windows-latest, cc: "cl", cxx: "cl", build_type: "Release", preset: "conan-release" }
-          - { name: "Ubuntu GCC Debug", os: ubuntu-latest, cc: "gcc", cxx: "g++", build_type: "Debug", preset: "conan-debug"}
-          - { name: "Ubuntu GCC Release", os: ubuntu-latest, cc: "gcc", cxx: "g++", build_type: "Release", preset: "conan-release" }
+        os: [ windows-latest, ubuntu-latest ]
+        build_type: ["Debug", "Release"]
 
     steps:
       - name: Checkout code
@@ -32,14 +29,16 @@ jobs:
           use_venv: true
 
       - name: Install Conan dependencies
-        run: conan install . --build=missing -s build_type=${{ matrix.config.build_type }}
+        run: conan install . --build=missing -s build_type=${{ matrix.build_type }}
+
+      - id: build_type
+        uses: Entepotenz/change-string-case-action-min-dependencies@v1.2.0
+        with:
+          string: ${{ matrix.build_type }}
 
       - name: Build Project
         uses: lukka/run-cmake@v10
         with:
-          configurePreset: ${{ matrix.config.preset }}
-          buildPreset: ${{ matrix.config.preset }}
-          testPreset: ${{ matrix.config.preset }}
-
-#      - name: Test Project
-#        uses: threeal/ctest-action@v1.1.0
+          configurePreset: ${{ (runner.os == 'Windows') && 'conan-default' || format('conan-{0}', steps.build_type.outputs.lowercase) }}
+          buildPreset: ${{ format('conan-{0}', steps.build_type.outputs.lowercase) }}
+          testPreset: ${{ format('conan-{0}', steps.build_type.outputs.lowercase) }}
