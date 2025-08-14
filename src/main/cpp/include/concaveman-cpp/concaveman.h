@@ -13,13 +13,9 @@
 #include <array>
 #include <vector>
 #include <string>
-#include <iostream>
 #include <iomanip>
-#include <stdlib.h>
 #include <limits>
-#include <set>
 #include <queue>
-#include <assert.h>
 
 template<class T> class compare_first {
 public:
