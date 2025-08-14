@@ -10,7 +10,8 @@ jobs:
     strategy:
       matrix:
         config:
-#          - { name: "Windows MSVC", os: windows-latest, cc: "cl", cxx: "cl" }
+          - { name: "Windows MSVC Debug", os: windows-latest, cc: "cl", cxx: "cl", build_type: "Debug", preset: "conan-debug" }
+          - { name: "Windows MSVC Release", os: windows-latest, cc: "cl", cxx: "cl", build_type: "Release", preset: "conan-release" }
           - { name: "Ubuntu GCC Debug", os: ubuntu-latest, cc: "gcc", cxx: "g++", build_type: "Debug", preset: "conan-debug"}
           - { name: "Ubuntu GCC Release", os: ubuntu-latest, cc: "gcc", cxx: "g++", build_type: "Release", preset: "conan-release" }
 
