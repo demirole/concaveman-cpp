@@ -6,15 +6,22 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ windows-latest, ubuntu-latest ]
+        build_type: ["Debug", "Release"]
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Setup Ninja
+        uses: lukka/get-cmake@latest
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-          cache: 'pip'
 
       - name: Setup Conan Client
         uses: conan-io/setup-conan@v1.2.0
@@ -22,14 +29,16 @@ jobs:
           use_venv: true
 
       - name: Install Conan dependencies
-        run: conan install . --build=missing
+        run: conan install . --build=missing -s build_type=${{ matrix.build_type }}
+
+      - id: build_type
+        uses: Entepotenz/change-string-case-action-min-dependencies@v1.2.0
+        with:
+          string: ${{ matrix.build_type }}
 
       - name: Build Project
-        uses: threeal/cmake-action@v2.1.0
+        uses: lukka/run-cmake@v10
         with:
-          generator: Ninja
-          cxx-compiler: g++
-          c-compiler: gcc
-
-      - name: Test Project
-        uses: threeal/ctest-action@v1.1.0
+          configurePreset: ${{ (runner.os == 'Windows') && 'conan-default' || format('conan-{0}', steps.build_type.outputs.lowercase) }}
+          buildPreset: ${{ format('conan-{0}', steps.build_type.outputs.lowercase) }}
+          testPreset: ${{ format('conan-{0}', steps.build_type.outputs.lowercase) }}
