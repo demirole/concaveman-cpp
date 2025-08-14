@@ -13,16 +13,9 @@
 #include <array>
 #include <vector>
 #include <string>
-#include <iostream>
 #include <iomanip>
-#include <stdlib.h>
 #include <limits>
-#include <set>
 #include <queue>
-#include <assert.h>
-
-//#define DEBUG // uncomment to dump debug info to screen
-//#define DEBUG_2 // uncomment to dump second-level debug info to screen
 
 template<class T> class compare_first {
 public:
@@ -219,9 +212,6 @@ public:
         }
         if (!best_child.get().is_leaf()) {
             best_child.get().insert(data, bounds);
-#ifdef DEBUG
-            std::cout << "best_child: " << bounds[0] << " " << bounds[1] << std::endl;
-#endif
             return;
         }
 
@@ -451,14 +441,8 @@ public:
     }
 
     ~CircularList() {
-#ifdef DEBUG        
-        std::cout << "~CircularList()" << std::endl;
-#endif
         auto node = m_last;
         while (true) {
-#ifdef DEBUG        
-//             std::cout << (i++) << std::endl;
-#endif
             auto tmp = node;
             node = node->m_next;
             delete tmp;
@@ -504,32 +488,6 @@ template<class T> void updateBBox(typename CircularElement<T>::ptr_type elem) {
     node.maxY = std::max(p1[1], p2[1]);
 }
 
-
-#ifdef DEBUG_2
-template<class T> void snapshot(
-    const std::array<T, 2> &a,
-    const std::array<T, 2> &b,
-    const std::array<T, 2> &c,
-    const std::array<T, 2> &d,
-    const double sqLen,
-    const double maxSqLen,
-    const std::array<T, 2> &trigger,
-    const bool use_trigger) {
-
-    if ( !use_trigger || trigger == b ) {
-        if ( !use_trigger )
-            printf ("Snapshot untriggered\n");
-        else
-            printf ("Snapshot trigger: %0.6f %0.6f \n", trigger[0], trigger[1]);
-        printf ("... segment a, b: %0.6f %0.6f, %0.6f %0.6f \n", a[0], a[1], b[0], b[1]);
-        printf ("... segment c, d: %0.6f %0.6f, %0.6f %0.6f \n", c[0], c[1], d[0], d[1]);
-        printf ("... sqDist a-b, b-c, c-d: %e, %e, %e", getSqDist(a, b), getSqDist(b, c), getSqDist(c, d));
-        printf ("... sqLen, maxSqLen: %e, %e", sqLen, maxSqLen);
-    }
-}
-#endif
-
-
 template<class T, int MAX_CHILDREN> std::vector<std::array<T, 2>> concaveman(
     const std::vector<std::array<T, 2>> &points,
     // start with a convex hull of the points
@@ -545,10 +503,6 @@ template<class T, int MAX_CHILDREN> std::vector<std::array<T, 2>> concaveman(
     typedef CircularElement<node_type> circ_elem_type;
     typedef CircularList<node_type> circ_list_type;
     typedef circ_elem_type *circ_elem_ptr_type;
-
-#ifdef DEBUG
-    std::cout << "concaveman()" << std::endl;
-#endif
 
     // exit if hull includes all points already
     if (hull.size() == points.size()) {
@@ -574,22 +528,6 @@ template<class T, int MAX_CHILDREN> std::vector<std::array<T, 2>> concaveman(
         tree.erase(p, { p[0], p[1], p[0], p[1] });
         last = circList.insert(last, p);
         queue.push_back(last);
-    }
-
-#ifdef DEBUG_2
-    tree.print(0);
-#endif
-
-    // loops through the hull?  why?
-#ifdef DEBUG
-    std::cout << "Starting hull: ";
-#endif
-    for (auto elem = last->next(); ; elem=elem->next()) {
-#ifdef DEBUG
-        std::cout << elem->data().p[0] << " " << elem->data().p[1] << std::endl;
-#endif
-        if (elem == last)
-            break;
     }
 
     // index the segments with an R-tree (for intersection checks)
@@ -621,23 +559,12 @@ template<class T, int MAX_CHILDREN> std::vector<std::array<T, 2>> concaveman(
 
         auto maxSqLen = sqLen / sqConcavity;
 
-#ifdef DEBUG_2
-        // dump key parameters either on every pass or when a certain point is 'b'
-        point_type trigger = { 151.1373474787800, -33.7733192376544 };
-        snapshot(a, b, c, d, sqLen, maxSqLen, trigger, true);
-#endif
-
         // find the best connection point for the current edge to flex inward to
         bool ok;
         auto p = findCandidate(tree, a, b, c, d, maxSqLen, segTree, ok);
 
         // if we found a connection and it satisfies our concavity measure
         if (ok && std::min(getSqDist(p, b), getSqDist(p, c)) <= maxSqLen) {
-
-#ifdef DEBUG
-            printf ("Modifying hull, p: %0.6f %0.6f \n" ,p[0], p[1]);
-#endif
-
             // connect the edge endpoints through this point and add 2 new edges to the queue
             queue.push_back(elem);
             queue.push_back(elem->insert(p));
@@ -655,10 +582,6 @@ template<class T, int MAX_CHILDREN> std::vector<std::array<T, 2>> concaveman(
             segTree.insert(elem, { node.minX, node.minY, node.maxX, node.maxY });
             segTree.insert(elem->next(), { next.minX, next.minY, next.maxX, next.maxY });
         }
-#ifdef DEBUG
-        else
-            printf ("No point found along segment: %0.6f %0.6f, %0.6f %0.6f \n", b[0], b[1], c[0], c[1]);
-#endif
     }
 
     // convert the resulting hull linked list to an array of points
@@ -689,10 +612,6 @@ template<class T, int MAX_CHILDREN> std::array<T, 2> findCandidate(
     typedef const tree_type const_tree_type;
     typedef std::reference_wrapper<const_tree_type> tree_ref_type;
     typedef std::tuple<T, tree_ref_type> tuple_type;
-
-#ifdef DEBUG
-    std::cout << "findCandidate(), maxDist: " << maxDist << std::endl;
-#endif
 
     ok = false;
 
@@ -726,10 +645,6 @@ template<class T, int MAX_CHILDREN> std::array<T, 2> findCandidate(
             auto d0 = sqSegDist(p, a, b);
             auto d1 = sqSegDist(p, c, d);
 
-#ifdef DEBUG_2
-            printf ("    p: %0.6f %0.6f sqSegDist: %e, %e, %e \n", bounds[0], bounds[1], d0, std::get<0>(item), d1);
-#endif
-
             if (-std::get<0>(item) < d0 && -std::get<0>(item) < d1 &&
                 noIntersections(b, p, segTree) &&
                 noIntersections(c, p, segTree)) {
@@ -737,16 +652,6 @@ template<class T, int MAX_CHILDREN> std::array<T, 2> findCandidate(
                 ok = true;
                 return std::get<1>(item).get().data();
             }
-
-#ifdef DEBUG_2
-            else {
-                bool cond1 = -std::get<0>(item) < d0;
-                bool cond2 = -std::get<0>(item) < d1;
-                bool cond3 = noIntersections(b, p, segTree);
-                bool cond4 = noIntersections(c, p, segTree);
-                std::cout << "Not OK: " << cond1 << " " << cond2 << " " << cond3 << " " << cond4 << std::endl;
-            }
-#endif
          }
 
         if (queue.empty())
