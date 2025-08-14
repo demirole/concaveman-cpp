@@ -86,7 +86,7 @@ TEST(RtreeTest, sqSegDist) {
 TEST(RtreeTest, CircularList) {
     typedef double T;
     typedef Node<T> node_type;
-    typedef typename node_type::point_type point_type;
+    typedef node_type::point_type point_type;
     auto lst = std::make_unique<CircularList<node_type>>();
     auto a = lst->insert(nullptr, point_type { 1, 2 });
     auto b = a->insert(point_type { 3, 4 });
@@ -104,11 +104,11 @@ TEST(RtreeTest, priority_queue) {
     typedef std::tuple<T, node_type> tuple_type;
     std::priority_queue<tuple_type, std::vector<tuple_type>, compare_first<tuple_type>> queue;
 
-    queue.push(std::make_tuple(-5.0, node_type({ 1, 2 })));
-    queue.push(std::make_tuple(-4.0, node_type({ 3, 4 })));
-    queue.push(std::make_tuple(-1.0, node_type({ 5, 6 })));
-    queue.push(std::make_tuple(-10.0, node_type({ 7, 8 })));
-    queue.push(std::make_tuple(-0.5, node_type({ 9, 10 })));
+    queue.emplace(-5.0, node_type({ 1, 2 }));
+    queue.emplace(-4.0, node_type({ 3, 4 }));
+    queue.emplace(-1.0, node_type({ 5, 6 }));
+    queue.emplace(-10.0, node_type({ 7, 8 }));
+    queue.emplace(-0.5, node_type({ 9, 10 }));
 
     EXPECT_EQ(std::get<0>(queue.top()), -0.5);
     queue.pop();
