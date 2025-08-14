@@ -17,7 +17,7 @@
 #include <limits>
 #include <queue>
 
-template<class T> class compare_first {
+template<typename T> class compare_first {
 public:
     bool operator()(const T &a, const T &b) {
         return (std::get<0>(a) < std::get<0>(b));
@@ -25,7 +25,7 @@ public:
 };
 
 
-template<class T> T orient2d(
+template<typename T> T orient2d(
     const std::array<T, 2> &p1,
     const std::array<T, 2> &p2,
     const std::array<T, 2> &p3) {
@@ -38,7 +38,7 @@ template<class T> T orient2d(
 
 
 // check if the edges (p1,q1) and (p2,q2) intersect
-template<class T> bool intersects(
+template<typename T> bool intersects(
     const std::array<T, 2> &p1,
     const std::array<T, 2> &q1,
     const std::array<T, 2> &p2,
@@ -54,7 +54,7 @@ template<class T> bool intersects(
 
 
 // square distance between 2 points
-template<class T> T getSqDist(
+template<typename T> T getSqDist(
     const std::array<T, 2> &p1,
     const std::array<T, 2> &p2) {
 
@@ -65,7 +65,7 @@ template<class T> T getSqDist(
 
 
 // square distance from a point to a segment
-template<class T> T sqSegDist(
+template<typename T> T sqSegDist(
     const std::array<T, 2> &p,
     const std::array<T, 2> &p1,
     const std::array<T, 2> &p2) {
@@ -94,7 +94,7 @@ template<class T> T sqSegDist(
 
 
 // segment to segment distance, ported from http://geomalgorithms.com/a07-_distance.html by Dan Sunday
-template<class T> T sqSegSegDist(T x0, T y0,
+template<typename T> T sqSegSegDist(T x0, T y0,
     T x1, T y1,
     T x2, T y2,
     T x3, T y3) {
@@ -166,7 +166,7 @@ template<class T> T sqSegSegDist(T x0, T y0,
 }
 
 
-template<class T, int DIM, int MAX_CHILDREN, class DATA> class rtree {
+template<typename T, int DIM, int MAX_CHILDREN, class DATA> class rtree {
 public:
     typedef rtree<T, DIM, MAX_CHILDREN, DATA> type;
     typedef const type const_type;
@@ -203,7 +203,7 @@ public:
 
         std::reference_wrapper<type> best_child = *m_children.begin()->get();
         auto best_volume = volume(best_child.get().updated_bounds(bounds));
-        for (auto it = ++m_children.begin(); it != m_children.end(); it++) {
+        for (auto it = ++m_children.begin(); it != m_children.end(); ++it) {
             auto v = volume((*it)->updated_bounds(bounds));
             if (v < best_volume) {
                 best_volume = v;
@@ -261,12 +261,12 @@ public:
         for (auto it = m_children.begin(); it != m_children.end(); ) {
             if (!(*it)->m_is_leaf) {
                 (*it)->erase(data, bounds);
-                it++;
+                ++it;
             } else if ((*it)->m_data == data &&
                 (*it)->m_bounds == bounds) {
                 m_children.erase(it++);
             } else
-                it++;
+                ++it;
         }
     }
 
@@ -283,7 +283,7 @@ public:
                 printf ("%s branch %0.6f %0.6f %0.6f %0.6f \n", pad.c_str(), bounds[0], bounds[1], bounds[2], bounds[3]);
                 (*it)->print(level + 1);
             }
-            it++;
+            ++it;
         }
     }
 
@@ -367,7 +367,7 @@ private:
 };
 
 
-template<class T> struct Node {
+template<typename T> struct Node {
     typedef Node<T> type;
     typedef type *type_ptr;
     typedef std::array<T, 2> point_type;
@@ -389,15 +389,15 @@ template<class T> struct Node {
 };
 
 
-template <class T> class CircularList;
+template <typename T> class CircularList;
 
 
-template<class T> class CircularElement {
+template<typename T> class CircularElement {
 public:
     typedef CircularElement<T> type;
     typedef type *ptr_type;
 
-    template<class... Args> CircularElement(Args&&... args):
+    template<typename... Args> CircularElement(Args&&... args):
     m_data(std::forward<Args>(args)...) {
 
     }
@@ -406,7 +406,7 @@ public:
         return m_data;
     }
 
-    template<class... Args> CircularElement<T>* insert(Args&&... args) {
+    template<typename... Args> CircularElement<T>* insert(Args&&... args) {
         auto elem = new CircularElement<T>(std::forward<Args>(args)...);
         elem->m_prev = this;
         elem->m_next = m_next;
@@ -424,15 +424,15 @@ public:
     }
 
 private:
-    T m_data;
-    CircularElement<T> *m_prev;
-    CircularElement<T> *m_next;
+    T m_data {};
+    CircularElement<T> *m_prev = nullptr;
+    CircularElement<T> *m_next = nullptr;
 
     friend class CircularList<T>;
 };
 
 
-template<class T> class CircularList {
+template<typename T> class CircularList {
 public:
     typedef CircularElement<T> element_type;
 
@@ -451,7 +451,7 @@ public:
         }
     }
 
-    template<class... Args> CircularElement<T>* insert(element_type *prev, Args&&... args) {
+    template<typename... Args> CircularElement<T>* insert(element_type *prev, Args&&... args) {
         auto elem = new CircularElement<T>(std::forward<Args>(args)...);
 
         if (prev == nullptr && m_last != nullptr)
@@ -478,7 +478,7 @@ private:
 
 
 // update the bounding box of a node's edge
-template<class T> void updateBBox(typename CircularElement<T>::ptr_type elem) {
+template<typename T> void updateBBox(typename CircularElement<T>::ptr_type elem) {
     auto &node(elem->data());
     auto p1 = node.p;
     auto p2 = elem->next()->data().p;
@@ -488,7 +488,7 @@ template<class T> void updateBBox(typename CircularElement<T>::ptr_type elem) {
     node.maxY = std::max(p1[1], p2[1]);
 }
 
-template<class T, int MAX_CHILDREN> std::vector<std::array<T, 2>> concaveman(
+template<typename T, int MAX_CHILDREN> std::vector<std::array<T, 2>> concaveman(
     const std::vector<std::array<T, 2>> &points,
     // start with a convex hull of the points
     const std::vector<int> &hull,
@@ -563,7 +563,7 @@ template<class T, int MAX_CHILDREN> std::vector<std::array<T, 2>> concaveman(
         bool ok;
         auto p = findCandidate(tree, a, b, c, d, maxSqLen, segTree, ok);
 
-        // if we found a connection and it satisfies our concavity measure
+        // if we found a connection, and it satisfies our concavity measure
         if (ok && std::min(getSqDist(p, b), getSqDist(p, c)) <= maxSqLen) {
             // connect the edge endpoints through this point and add 2 new edges to the queue
             queue.push_back(elem);
@@ -596,7 +596,7 @@ template<class T, int MAX_CHILDREN> std::vector<std::array<T, 2>> concaveman(
 }
 
 
-template<class T, int MAX_CHILDREN> std::array<T, 2> findCandidate(
+template<typename T, int MAX_CHILDREN> std::array<T, 2> findCandidate(
     const rtree<T, 2, MAX_CHILDREN, std::array<T, 2>> &tree,
     const std::array<T, 2> &a,
     const std::array<T, 2> &b,
@@ -607,7 +607,6 @@ template<class T, int MAX_CHILDREN> std::array<T, 2> findCandidate(
     bool &ok) {
 
     typedef std::array<T, 2> point_type;
-    typedef CircularElement<Node<T>> circ_elem_type;
     typedef rtree<T, 2, MAX_CHILDREN, std::array<T, 2>> tree_type;
     typedef const tree_type const_tree_type;
     typedef std::reference_wrapper<const_tree_type> tree_ref_type;
@@ -666,7 +665,7 @@ template<class T, int MAX_CHILDREN> std::array<T, 2> findCandidate(
 
 
 // square distance from a segment bounding box to the given one
-template<class T, int MAX_CHILDREN, class USER_DATA> T sqSegBoxDist(
+template<typename T, int MAX_CHILDREN, class USER_DATA> T sqSegBoxDist(
     const std::array<T, 2> &a,
     const std::array<T, 2> &b,
     const rtree<T, 2, MAX_CHILDREN, USER_DATA> &bbox) {
@@ -696,7 +695,7 @@ template<class T, int MAX_CHILDREN, class USER_DATA> T sqSegBoxDist(
 }
 
 
-template<class T, int MAX_CHILDREN, class USER_DATA> bool inside(
+template<typename T, int MAX_CHILDREN, class USER_DATA> bool inside(
     const std::array<T, 2> &a,
     const rtree<T, 2, MAX_CHILDREN, USER_DATA> &bbox) {
 
@@ -716,7 +715,7 @@ template<class T, int MAX_CHILDREN, class USER_DATA> bool inside(
 
 
 // check if the edge (a,b) doesn't intersect any other edges
-template<class T, int MAX_CHILDREN> bool noIntersections(
+template<typename T, int MAX_CHILDREN> bool noIntersections(
     const std::array<T, 2> &a,
     const std::array<T, 2> &b,
     const rtree<T, 2, MAX_CHILDREN, typename CircularElement<Node<T>>::ptr_type> &segTree) {
