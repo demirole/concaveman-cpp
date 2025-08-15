@@ -877,108 +877,26 @@ container_type concaveman(
     return concave;
 }
 
+// old interface
+// types for the compat interfaces
+template <class T>
+using point_type_compat = std::array<T, 2>;
+template <class T>
+using container_type_compat = std::vector<point_type_compat<T>>;
 
-template <typename point_type, typename T, int MAX_CHILDREN>
-    requires details::concepts::Point2Like<point_type>
-auto findCandidate(
-    const rtree<T, 2, MAX_CHILDREN, point_type>& tree,
-    const point_type& a,
-    const point_type& b,
-    const point_type& c,
-    const point_type& d,
-    T maxDist,
-    const rtree<T, 2, MAX_CHILDREN, typename CircularElement<Node<point_type, T>>::ptr_type>& segTree,
-    bool& ok)
+template <typename T, int MAX_CHILDREN>
+point_type_compat<T> concaveman(
+    const container_type_compat<T>& points,
+    // start with a convex hull of the points
+    const std::vector<int>& hull,
+    // a relative measure of concavity; higher value means simpler hull
+    T concavity = 2,
+    // when a segment goes below this length threshold, it won't be drilled down further
+    T lengthThreshold = 0
+)
 {
-    typedef rtree<T, 2, MAX_CHILDREN, point_type> tree_type;
-    typedef const tree_type const_tree_type;
-    typedef std::reference_wrapper<const_tree_type> tree_ref_type;
-    typedef std::tuple<T, tree_ref_type> tuple_type;
-
-    ok = false;
-
-    std::priority_queue<tuple_type, std::vector<tuple_type>, compare_first<tuple_type>> queue;
-    std::reference_wrapper<const_tree_type> node = tree;
-
-    // search through the point R-tree with a depth-first search using a priority queue
-    // in the order of distance to the edge (b, c)
-    while (true)
-    {
-        for (auto& child : node.get().children())
-        {
-            auto bounds = child->bounds();
-            point_type pt = {bounds[0], bounds[1]};
-
-            auto dist = child->is_leaf() ? sqSegDist(pt, b, c) : sqSegBoxDist(b, c, *child);
-            if (dist > maxDist)
-                continue; // skip the node if it's farther than we ever need
-
-            queue.push(tuple_type(-dist, *child));
-        }
-
-        while (!queue.empty() && std::get<1>(queue.top()).get().is_leaf())
-        {
-            auto item = queue.top();
-            queue.pop();
-
-            auto bounds = std::get<1>(item).get().bounds();
-            auto p = point_type {bounds[0], bounds[1]};
-
-            // skip all points that are as close to adjacent edges (a,b) and (c,d),
-            // and points that would introduce self-intersections when connected
-            auto d0 = sqSegDist(p, a, b);
-            auto d1 = sqSegDist(p, c, d);
-
-            if (-std::get<0>(item) < d0 && -std::get<0>(item) < d1 &&
-                noIntersections(b, p, segTree) &&
-                noIntersections(c, p, segTree))
-            {
-                ok = true;
-                return std::get<1>(item).get().data();
-            }
-        }
-
-        if (queue.empty())
-            break;
-
-        node = std::get<1>(queue.top());
-        queue.pop();
-    }
-
-    return point_type {};
-}
-
-
-// square distance from a segment bounding box to the given one
-template <typename point_type, typename T, int MAX_CHILDREN>
-    requires details::concepts::Point2Like<point_type>
-auto sqSegBoxDist(
-    const point_type& a,
-    const point_type& b,
-    const rtree<T, 2, MAX_CHILDREN, point_type>& bbox)
-{
-    if (inside(a, bbox) || inside(b, bbox))
-        return 0.;
-
-    auto& bounds = bbox.bounds();
-    auto minX = bounds[0];
-    auto minY = bounds[1];
-    auto maxX = bounds[2];
-    auto maxY = bounds[3];
-
-    auto d1 = sqSegSegDist(a[0], a[1], b[0], b[1], minX, minY, maxX, minY);
-    if (d1 == 0) return 0.;
-
-    auto d2 = sqSegSegDist(a[0], a[1], b[0], b[1], minX, minY, minX, maxY);
-    if (d2 == 0) return 0.;
-
-    auto d3 = sqSegSegDist(a[0], a[1], b[0], b[1], maxX, minY, maxX, maxY);
-    if (d3 == 0) return 0.;
-
-    auto d4 = sqSegSegDist(a[0], a[1], b[0], b[1], minX, maxY, maxX, maxY);
-    if (d4 == 0) return 0.;
-
-    return std::min(std::min(d1, d2), std::min(d3, d4));
+    return concaveman_impl<container_type_compat<T>, point_type_compat<T>, T, 16>(
+        points, hull, concavity, lengthThreshold);
 }
 
 }
