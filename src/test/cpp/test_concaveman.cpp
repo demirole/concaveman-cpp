@@ -72,16 +72,18 @@ TEST(RtreeTest, erase) {
 //}
 
 TEST(RtreeTest, sqSegDist) {
-    auto a = sqSegDist<double>({ 0, 0 }, { 0, 1 }, { 1, 0 });
+    using T = double;
+    using point_type = std::array<T, 2>;
+    auto a = sqSegDist<point_type, T>({ 0, 0 }, { 0, 1 }, { 1, 0 });
     EXPECT_EQ(a, 0.5);
 
-    auto b = sqSegDist<double>({ 0, 1 }, { 0, 1 }, { 1, 0 });
+    auto b = sqSegDist<point_type, T>({ 0, 1 }, { 0, 1 }, { 1, 0 });
     EXPECT_EQ(b, 0);
 
-    auto c = sqSegDist<double>({ -1, 0 }, { 0, 0 }, { 0, 1 });
+    auto c = sqSegDist<point_type, T>({ -1, 0 }, { 0, 0 }, { 0, 1 });
     EXPECT_EQ(c, 1);
 
-    auto d = sqSegDist<double>({ -1, -1 }, { 0, 0 }, { 0, 1 });
+    auto d = sqSegDist<point_type, T>({ -1, -1 }, { 0, 0 }, { 0, 1 });
     EXPECT_EQ(d, 2);
 }
 
@@ -126,9 +128,10 @@ TEST(RtreeTest, priority_queue) {
 
 
 TEST(RtreeTest, concaveman) {
-    typedef double T;
-    typedef std::array<T, 2> point_type;
-    std::vector<point_type> points {
+    using T = double;
+    using P = std::array<T, 2>;
+    using C = std::vector<P>;
+    C points {
         {0, 0},
         {1, 0},
         {0.25, 0.15},
@@ -137,7 +140,8 @@ TEST(RtreeTest, concaveman) {
     std::vector<int> hull {
         0, 1, 3
     };
-    auto concave = concaveman<T, 16>(points, hull, 2, 1);
+    auto concave = concaveman<C, P, T, 16>(points, hull, 2, 1);
+    EXPECT_EQ(concave.size(), points.size());
 }
 
 

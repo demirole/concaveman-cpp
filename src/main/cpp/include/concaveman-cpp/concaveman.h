@@ -20,6 +20,37 @@
 namespace ConcaveHull
 {
 
+// ---- concepts ---------------------------------------------------------------
+
+template<class P>
+concept Point2Like =
+    requires(P p) {
+    { p[0] };
+    { p[1] };
+    } &&
+    // same coordinate type at [0] and [1]
+    std::same_as<
+        std::remove_cvref_t<decltype(std::declval<P&>()[0])>,
+        std::remove_cvref_t<decltype(std::declval<P&>()[1])>
+    >;
+
+template<class C>
+concept RandomAccessContainer =
+    std::ranges::random_access_range<C> &&
+    std::ranges::sized_range<C>;
+
+template<class C, class T>
+concept PushBackable =
+    requires(C c, T v) {
+    { c.push_back(v) } -> std::same_as<void>;
+    };
+
+template<class C>
+concept Reservable =
+    requires(C c, std::size_t n) {
+    c.reserve(n);
+    };
+
 template <typename T>
 class compare_first
 {
@@ -31,26 +62,26 @@ public:
 };
 
 
-template <typename T>
-T orient2d(
-    const std::array<T, 2>& p1,
-    const std::array<T, 2>& p2,
-    const std::array<T, 2>& p3)
-{
-    T res = (p2[1] - p1[1]) * (p3[0] - p2[0]) -
-        (p2[0] - p1[0]) * (p3[1] - p2[1]);
 
-    return res;
+template <typename point_type>
+requires Point2Like<point_type>
+auto orient2d(
+    const point_type& p1,
+    const point_type& p2,
+    const point_type& p3)
+{
+    return (p2[1] - p1[1]) * (p3[0] - p2[0]) - (p2[0] - p1[0]) * (p3[1] - p2[1]);
 }
 
 
 // check if the edges (p1,q1) and (p2,q2) intersect
-template <typename T>
+template <typename point_type>
+requires Point2Like<point_type>
 bool intersects(
-    const std::array<T, 2>& p1,
-    const std::array<T, 2>& q1,
-    const std::array<T, 2>& p2,
-    const std::array<T, 2>& q2)
+    const point_type& p1,
+    const point_type& q1,
+    const point_type& p2,
+    const point_type& q2)
 {
     auto res = (p1[0] != q2[0] || p1[1] != q2[1]) &&
         (q1[0] != p2[0] || q1[1] != p2[1]) &&
@@ -62,10 +93,11 @@ bool intersects(
 
 
 // square distance between 2 points
-template <typename T>
-T getSqDist(
-    const std::array<T, 2>& p1,
-    const std::array<T, 2>& p2)
+template <typename point_type>
+requires Point2Like<point_type>
+auto getSqDist(
+    const point_type& p1,
+    const point_type& p2)
 {
     auto dx = p1[0] - p2[0];
     auto dy = p1[1] - p2[1];
@@ -74,11 +106,12 @@ T getSqDist(
 
 
 // square distance from a point to a segment
-template <typename T>
-T sqSegDist(
-    const std::array<T, 2>& p,
-    const std::array<T, 2>& p1,
-    const std::array<T, 2>& p2)
+template <typename point_type>
+requires Point2Like<point_type>
+auto sqSegDist(
+    const point_type& p,
+    const point_type& p1,
+    const point_type& p2)
 {
     auto x = p1[0];
     auto y = p1[1];
@@ -105,7 +138,6 @@ T sqSegDist(
 
     return dx * dx + dy * dy;
 }
-
 
 // segment to segment distance, ported from http://geomalgorithms.com/a07-_distance.html by Dan Sunday
 template <typename T>
@@ -193,16 +225,15 @@ T sqSegSegDist(T x0, T y0,
 }
 
 
-template <typename T, int DIM, int MAX_CHILDREN, class DATA>
+template <typename T, int DIM, int MAX_CHILDREN, class point_type>
 class rtree
 {
 public:
-    typedef rtree<T, DIM, MAX_CHILDREN, DATA> type;
-    typedef const type const_type;
-    typedef type* type_ptr;
-    typedef const type* type_const_ptr;
-    typedef std::array<T, DIM * 2> bounds_type;
-    typedef DATA data_type;
+    using type = rtree<T, DIM, MAX_CHILDREN, point_type>;
+    using const_type = const type;
+    using type_ptr = type*;
+    using type_const_ptr = const type*;
+    using bounds_type = std::array<T, DIM * 2> ;
 
     rtree():
         m_is_leaf(false), m_data()
@@ -214,7 +245,7 @@ public:
         }
     }
 
-    rtree(data_type data, const bounds_type& bounds):
+    rtree(point_type data, const bounds_type& bounds):
         m_is_leaf(true), m_data(data), m_bounds(bounds)
     {
         for (auto i = 0; i < DIM; i++)
@@ -222,7 +253,7 @@ public:
                 throw std::runtime_error("Bounds minima have to be less than maxima");
     }
 
-    void insert(data_type data, const bounds_type& bounds)
+    void insert(point_type data, const bounds_type& bounds)
     {
         if (m_is_leaf)
             throw std::runtime_error("Cannot insert into leaves");
@@ -255,7 +286,7 @@ public:
         auto leaf = std::make_unique<type>(best_child.get().data(),
                                            best_child.get().bounds());
         best_child.get().m_is_leaf = false;
-        best_child.get().m_data = data_type();
+        best_child.get().m_data = point_type();
         best_child.get().m_children.push_back(std::move(leaf));
         best_child.get().insert(data, bounds);
     }
@@ -293,7 +324,7 @@ public:
         return true;
     }
 
-    void erase(data_type data, const bounds_type& bounds)
+    void erase(point_type data, const bounds_type& bounds)
     {
         if (m_is_leaf)
             throw std::runtime_error("Cannot erase from leaves");
@@ -371,7 +402,7 @@ public:
         return m_is_leaf;
     }
 
-    data_type data() const
+    point_type data() const
     {
         return m_data;
     }
@@ -427,18 +458,18 @@ public:
 
 private:
     bool m_is_leaf;
-    data_type m_data;
+    point_type m_data;
     std::list<std::unique_ptr<type>> m_children;
     bounds_type m_bounds;
 };
 
 
-template <typename T>
+template <typename point_type, typename T>
+requires Point2Like<point_type>
 struct Node
 {
-    typedef Node<T> type;
+    typedef Node<point_type, T> type;
     typedef type* type_ptr;
-    typedef std::array<T, 2> point_type;
 
     Node(): p(),
             minX(), minY(), maxX(), maxY()
@@ -468,6 +499,7 @@ class CircularElement
 public:
     typedef CircularElement<T> type;
     typedef type* ptr_type;
+    using value_type = T;
 
     template <typename... Args>
     CircularElement(Args&&... args):
@@ -576,9 +608,12 @@ void updateBBox(typename CircularElement<T>::ptr_type elem)
     node.maxY = std::max(p1[1], p2[1]);
 }
 
-template <typename T, int MAX_CHILDREN>
-std::vector<std::array<T, 2>> concaveman(
-    const std::vector<std::array<T, 2>>& points,
+template <typename container_type, typename point_type, typename T, int MAX_CHILDREN>
+requires RandomAccessContainer<container_type> &&
+    Point2Like<point_type> &&
+    PushBackable<container_type, std::ranges::range_value_t<container_type>>
+container_type concaveman(
+    const container_type& points,
     // start with a convex hull of the points
     const std::vector<int>& hull,
     // a relative measure of concavity; higher value means simpler hull
@@ -587,8 +622,7 @@ std::vector<std::array<T, 2>> concaveman(
     T lengthThreshold = 0
 )
 {
-    typedef Node<T> node_type;
-    typedef std::array<T, 2> point_type;
+    typedef Node<point_type, T> node_type;
     typedef CircularElement<node_type> circ_elem_type;
     typedef CircularList<node_type> circ_list_type;
     typedef circ_elem_type* circ_elem_ptr_type;
@@ -596,7 +630,7 @@ std::vector<std::array<T, 2>> concaveman(
     // exit if hull includes all points already
     if (hull.size() == points.size())
     {
-        std::vector<point_type> res;
+        container_type res;
         for (auto& i : hull) res.push_back(points[i]);
         return res;
     }
@@ -681,7 +715,9 @@ std::vector<std::array<T, 2>> concaveman(
     }
 
     // convert the resulting hull linked list to an array of points
-    std::vector<point_type> concave;
+    container_type concave;
+    if constexpr (Reservable<T>)
+        concave.reserve(circList.size()); // optional optimization
     for (auto elem = last->next(); ; elem = elem->next())
     {
         concave.push_back(elem->data().p);
@@ -693,19 +729,19 @@ std::vector<std::array<T, 2>> concaveman(
 }
 
 
-template <typename T, int MAX_CHILDREN>
-std::array<T, 2> findCandidate(
-    const rtree<T, 2, MAX_CHILDREN, std::array<T, 2>>& tree,
-    const std::array<T, 2>& a,
-    const std::array<T, 2>& b,
-    const std::array<T, 2>& c,
-    const std::array<T, 2>& d,
+template <typename point_type, typename T, int MAX_CHILDREN>
+requires Point2Like<point_type>
+auto findCandidate(
+    const rtree<T, 2, MAX_CHILDREN, point_type>& tree,
+    const point_type& a,
+    const point_type& b,
+    const point_type& c,
+    const point_type& d,
     T maxDist,
-    const rtree<T, 2, MAX_CHILDREN, typename CircularElement<Node<T>>::ptr_type>& segTree,
+    const rtree<T, 2, MAX_CHILDREN, typename CircularElement<Node<point_type, T>>::ptr_type>& segTree,
     bool& ok)
 {
-    typedef std::array<T, 2> point_type;
-    typedef rtree<T, 2, MAX_CHILDREN, std::array<T, 2>> tree_type;
+    typedef rtree<T, 2, MAX_CHILDREN, point_type> tree_type;
     typedef const tree_type const_tree_type;
     typedef std::reference_wrapper<const_tree_type> tree_ref_type;
     typedef std::tuple<T, tree_ref_type> tuple_type;
@@ -737,7 +773,7 @@ std::array<T, 2> findCandidate(
             queue.pop();
 
             auto bounds = std::get<1>(item).get().bounds();
-            point_type p = {bounds[0], bounds[1]};
+            auto p = point_type {bounds[0], bounds[1]};
 
             // skip all points that are as close to adjacent edges (a,b) and (c,d),
             // and points that would introduce self-intersections when connected
@@ -760,19 +796,20 @@ std::array<T, 2> findCandidate(
         queue.pop();
     }
 
-    return point_type();
+    return point_type {};
 }
 
 
 // square distance from a segment bounding box to the given one
-template <typename T, int MAX_CHILDREN, class USER_DATA>
-T sqSegBoxDist(
-    const std::array<T, 2>& a,
-    const std::array<T, 2>& b,
-    const rtree<T, 2, MAX_CHILDREN, USER_DATA>& bbox)
+template <typename point_type, typename T, int MAX_CHILDREN>
+requires Point2Like<point_type>
+auto sqSegBoxDist(
+    const point_type& a,
+    const point_type& b,
+    const rtree<T, 2, MAX_CHILDREN, point_type>& bbox)
 {
     if (inside(a, bbox) || inside(b, bbox))
-        return 0;
+        return 0.;
 
     auto& bounds = bbox.bounds();
     auto minX = bounds[0];
@@ -781,25 +818,25 @@ T sqSegBoxDist(
     auto maxY = bounds[3];
 
     auto d1 = sqSegSegDist(a[0], a[1], b[0], b[1], minX, minY, maxX, minY);
-    if (d1 == 0) return 0;
+    if (d1 == 0) return 0.;
 
     auto d2 = sqSegSegDist(a[0], a[1], b[0], b[1], minX, minY, minX, maxY);
-    if (d2 == 0) return 0;
+    if (d2 == 0) return 0.;
 
     auto d3 = sqSegSegDist(a[0], a[1], b[0], b[1], maxX, minY, maxX, maxY);
-    if (d3 == 0) return 0;
+    if (d3 == 0) return 0.;
 
     auto d4 = sqSegSegDist(a[0], a[1], b[0], b[1], minX, maxY, maxX, maxY);
-    if (d4 == 0) return 0;
+    if (d4 == 0) return 0.;
 
     return std::min(std::min(d1, d2), std::min(d3, d4));
 }
 
 
-template <typename T, int MAX_CHILDREN, class USER_DATA>
+template <typename point_type, typename T, int MAX_CHILDREN>
 bool inside(
-    const std::array<T, 2>& a,
-    const rtree<T, 2, MAX_CHILDREN, USER_DATA>& bbox)
+    const point_type& a,
+    const rtree<T, 2, MAX_CHILDREN, point_type>& bbox)
 {
     auto& bounds = bbox.bounds();
 
@@ -817,11 +854,12 @@ bool inside(
 
 
 // check if the edge (a,b) doesn't intersect any other edges
-template <typename T, int MAX_CHILDREN>
+template <typename point_type, typename T, int MAX_CHILDREN>
+requires Point2Like<point_type>
 bool noIntersections(
-    const std::array<T, 2>& a,
-    const std::array<T, 2>& b,
-    const rtree<T, 2, MAX_CHILDREN, typename CircularElement<Node<T>>::ptr_type>& segTree)
+    const point_type& a,
+    const point_type& b,
+    const rtree<T, 2, MAX_CHILDREN, typename CircularElement<Node<point_type, T>>::ptr_type>& segTree)
 {
     auto minX = std::min(a[0], b[0]);
     auto minY = std::min(a[1], b[1]);
