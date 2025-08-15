@@ -19,14 +19,16 @@
 
 namespace ConcaveHull
 {
-
-// ---- concepts ---------------------------------------------------------------
-
-template<class P>
+namespace details
+{
+namespace concepts
+{
+template <typename P>
 concept Point2Like =
-    requires(P p) {
-    { p[0] };
-    { p[1] };
+    requires(P p)
+    {
+        { p[0] };
+        { p[1] };
     } &&
     // same coordinate type at [0] and [1]
     std::same_as<
@@ -34,22 +36,27 @@ concept Point2Like =
         std::remove_cvref_t<decltype(std::declval<P&>()[1])>
     >;
 
-template<class C>
+template <typename C>
 concept RandomAccessContainer =
     std::ranges::random_access_range<C> &&
     std::ranges::sized_range<C>;
 
-template<class C, class T>
+template <typename C, typename T>
 concept PushBackable =
-    requires(C c, T v) {
-    { c.push_back(v) } -> std::same_as<void>;
+    requires(C c, T v)
+    {
+        { c.push_back(v) } -> std::same_as<void>;
     };
 
-template<class C>
+template <typename C>
 concept Reservable =
-    requires(C c, std::size_t n) {
-    c.reserve(n);
+    requires(C c, std::size_t n)
+    {
+        c.reserve(n);
     };
+}
+}
+
 
 template <typename T>
 class compare_first
@@ -64,7 +71,7 @@ public:
 
 
 template <typename point_type>
-requires Point2Like<point_type>
+    requires details::concepts::Point2Like<point_type>
 auto orient2d(
     const point_type& p1,
     const point_type& p2,
@@ -76,7 +83,7 @@ auto orient2d(
 
 // check if the edges (p1,q1) and (p2,q2) intersect
 template <typename point_type>
-requires Point2Like<point_type>
+    requires details::concepts::Point2Like<point_type>
 bool intersects(
     const point_type& p1,
     const point_type& q1,
@@ -94,7 +101,7 @@ bool intersects(
 
 // square distance between 2 points
 template <typename point_type>
-requires Point2Like<point_type>
+    requires details::concepts::Point2Like<point_type>
 auto getSqDist(
     const point_type& p1,
     const point_type& p2)
@@ -107,7 +114,7 @@ auto getSqDist(
 
 // square distance from a point to a segment
 template <typename point_type>
-requires Point2Like<point_type>
+    requires details::concepts::Point2Like<point_type>
 auto sqSegDist(
     const point_type& p,
     const point_type& p1,
@@ -465,7 +472,7 @@ private:
 
 
 template <typename point_type, typename T>
-requires Point2Like<point_type>
+    requires details::concepts::Point2Like<point_type>
 struct Node
 {
     typedef Node<point_type, T> type;
@@ -609,9 +616,9 @@ void updateBBox(typename CircularElement<T>::ptr_type elem)
 }
 
 template <typename container_type, typename point_type, typename T, int MAX_CHILDREN>
-requires RandomAccessContainer<container_type> &&
-    Point2Like<point_type> &&
-    PushBackable<container_type, std::ranges::range_value_t<container_type>>
+    requires details::concepts::RandomAccessContainer<container_type> &&
+    details::concepts::Point2Like<point_type> &&
+    details::concepts::PushBackable<container_type, std::ranges::range_value_t<container_type>>
 container_type concaveman(
     const container_type& points,
     // start with a convex hull of the points
@@ -716,7 +723,7 @@ container_type concaveman(
 
     // convert the resulting hull linked list to an array of points
     container_type concave;
-    if constexpr (Reservable<T>)
+    if constexpr (details::concepts::Reservable<T>)
         concave.reserve(circList.size()); // optional optimization
     for (auto elem = last->next(); ; elem = elem->next())
     {
@@ -730,7 +737,7 @@ container_type concaveman(
 
 
 template <typename point_type, typename T, int MAX_CHILDREN>
-requires Point2Like<point_type>
+    requires details::concepts::Point2Like<point_type>
 auto findCandidate(
     const rtree<T, 2, MAX_CHILDREN, point_type>& tree,
     const point_type& a,
@@ -802,7 +809,7 @@ auto findCandidate(
 
 // square distance from a segment bounding box to the given one
 template <typename point_type, typename T, int MAX_CHILDREN>
-requires Point2Like<point_type>
+    requires details::concepts::Point2Like<point_type>
 auto sqSegBoxDist(
     const point_type& a,
     const point_type& b,
@@ -855,7 +862,7 @@ bool inside(
 
 // check if the edge (a,b) doesn't intersect any other edges
 template <typename point_type, typename T, int MAX_CHILDREN>
-requires Point2Like<point_type>
+    requires details::concepts::Point2Like<point_type>
 bool noIntersections(
     const point_type& a,
     const point_type& b,
@@ -878,5 +885,4 @@ bool noIntersections(
 
     return true;
 }
-
 }
