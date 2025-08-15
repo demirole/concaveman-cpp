@@ -754,7 +754,6 @@ bool noIntersections(
 
     return true;
 }
-
 }
 
 template <typename container_type, typename point_type, typename T, int MAX_CHILDREN>
@@ -898,5 +897,4 @@ point_type_compat<T> concaveman(
     return concaveman_impl<container_type_compat<T>, point_type_compat<T>, T, 16>(
         points, hull, concavity, lengthThreshold);
 }
-
 }
