@@ -17,6 +17,9 @@
 #include <limits>
 #include <queue>
 
+namespace ConcaveHull
+{
+
 template <typename T>
 class compare_first
 {
@@ -836,4 +839,6 @@ bool noIntersections(
     }
 
     return true;
+}
+
 }

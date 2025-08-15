@@ -9,6 +9,8 @@
 #include <gtest/gtest.h>
 #include <concaveman-cpp/concaveman.h>
 
+using namespace ConcaveHull;
+
 TEST(RtreeTest, basic) {
     typedef rtree<float, 2, 8, intptr_t> myrtree;
     typedef rtree<float, 2, 16, intptr_t> myrtree2;
