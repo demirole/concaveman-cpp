@@ -55,7 +55,6 @@ concept Reservable =
         c.reserve(n);
     };
 }
-}
 
 
 template <typename T>
@@ -68,8 +67,6 @@ public:
     }
 };
 
-
-
 template <typename point_type>
     requires details::concepts::Point2Like<point_type>
 auto orient2d(
@@ -79,7 +76,6 @@ auto orient2d(
 {
     return (p2[1] - p1[1]) * (p3[0] - p2[0]) - (p2[0] - p1[0]) * (p3[1] - p2[1]);
 }
-
 
 // check if the edges (p1,q1) and (p2,q2) intersect
 template <typename point_type>
@@ -98,7 +94,6 @@ bool intersects(
     return res;
 }
 
-
 // square distance between 2 points
 template <typename point_type>
     requires details::concepts::Point2Like<point_type>
@@ -110,7 +105,6 @@ auto getSqDist(
     auto dy = p1[1] - p2[1];
     return dx * dx + dy * dy;
 }
-
 
 // square distance from a point to a segment
 template <typename point_type>
@@ -231,7 +225,6 @@ T sqSegSegDist(T x0, T y0,
     return dx * dx + dy * dy;
 }
 
-
 template <typename T, int DIM, int MAX_CHILDREN, class point_type>
 class rtree
 {
@@ -240,7 +233,7 @@ public:
     using const_type = const type;
     using type_ptr = type*;
     using type_const_ptr = const type*;
-    using bounds_type = std::array<T, DIM * 2> ;
+    using bounds_type = std::array<T, DIM * 2>;
 
     rtree():
         m_is_leaf(false), m_data()
@@ -495,10 +488,8 @@ struct Node
     T maxY;
 };
 
-
 template <typename T>
 class CircularList;
-
 
 template <typename T>
 class CircularElement
@@ -601,7 +592,6 @@ private:
     element_type* m_last;
 };
 
-
 // update the bounding box of a node's edge
 template <typename T>
 void updateBBox(typename CircularElement<T>::ptr_type elem)
@@ -613,6 +603,158 @@ void updateBBox(typename CircularElement<T>::ptr_type elem)
     node.minY = std::min(p1[1], p2[1]);
     node.maxX = std::max(p1[0], p2[0]);
     node.maxY = std::max(p1[1], p2[1]);
+}
+
+template <typename point_type, typename T, int MAX_CHILDREN>
+    requires details::concepts::Point2Like<point_type>
+auto findCandidate(
+    const rtree<T, 2, MAX_CHILDREN, point_type>& tree,
+    const point_type& a,
+    const point_type& b,
+    const point_type& c,
+    const point_type& d,
+    T maxDist,
+    const rtree<T, 2, MAX_CHILDREN, typename CircularElement<Node<point_type, T>>::ptr_type>& segTree,
+    bool& ok)
+{
+    typedef rtree<T, 2, MAX_CHILDREN, point_type> tree_type;
+    typedef const tree_type const_tree_type;
+    typedef std::reference_wrapper<const_tree_type> tree_ref_type;
+    typedef std::tuple<T, tree_ref_type> tuple_type;
+
+    ok = false;
+
+    std::priority_queue<tuple_type, std::vector<tuple_type>, details::compare_first<tuple_type>> queue;
+    std::reference_wrapper<const_tree_type> node = tree;
+
+    // search through the point R-tree with a depth-first search using a priority queue
+    // in the order of distance to the edge (b, c)
+    while (true)
+    {
+        for (auto& child : node.get().children())
+        {
+            auto bounds = child->bounds();
+            point_type pt = {bounds[0], bounds[1]};
+
+            auto dist = child->is_leaf() ? details::sqSegDist(pt, b, c) : sqSegBoxDist(b, c, *child);
+            if (dist > maxDist)
+                continue; // skip the node if it's farther than we ever need
+
+            queue.push(tuple_type(-dist, *child));
+        }
+
+        while (!queue.empty() && std::get<1>(queue.top()).get().is_leaf())
+        {
+            auto item = queue.top();
+            queue.pop();
+
+            auto bounds = std::get<1>(item).get().bounds();
+            auto p = point_type{bounds[0], bounds[1]};
+
+            // skip all points that are as close to adjacent edges (a,b) and (c,d),
+            // and points that would introduce self-intersections when connected
+            auto d0 = details::sqSegDist(p, a, b);
+            auto d1 = details::sqSegDist(p, c, d);
+
+            if (-std::get<0>(item) < d0 && -std::get<0>(item) < d1 &&
+                noIntersections(b, p, segTree) &&
+                noIntersections(c, p, segTree))
+            {
+                ok = true;
+                return std::get<1>(item).get().data();
+            }
+        }
+
+        if (queue.empty())
+            break;
+
+        node = std::get<1>(queue.top());
+        queue.pop();
+    }
+
+    return point_type{};
+}
+
+
+// square distance from a segment bounding box to the given one
+template <typename point_type, typename T, int MAX_CHILDREN>
+    requires details::concepts::Point2Like<point_type>
+auto sqSegBoxDist(
+    const point_type& a,
+    const point_type& b,
+    const rtree<T, 2, MAX_CHILDREN, point_type>& bbox)
+{
+    if (inside(a, bbox) || inside(b, bbox))
+        return 0.;
+
+    auto& bounds = bbox.bounds();
+    auto minX = bounds[0];
+    auto minY = bounds[1];
+    auto maxX = bounds[2];
+    auto maxY = bounds[3];
+
+    auto d1 = sqSegSegDist(a[0], a[1], b[0], b[1], minX, minY, maxX, minY);
+    if (d1 == 0) return 0.;
+
+    auto d2 = sqSegSegDist(a[0], a[1], b[0], b[1], minX, minY, minX, maxY);
+    if (d2 == 0) return 0.;
+
+    auto d3 = sqSegSegDist(a[0], a[1], b[0], b[1], maxX, minY, maxX, maxY);
+    if (d3 == 0) return 0.;
+
+    auto d4 = sqSegSegDist(a[0], a[1], b[0], b[1], minX, maxY, maxX, maxY);
+    if (d4 == 0) return 0.;
+
+    return std::min(std::min(d1, d2), std::min(d3, d4));
+}
+
+
+template <typename point_type, typename T, int MAX_CHILDREN>
+bool inside(
+    const point_type& a,
+    const rtree<T, 2, MAX_CHILDREN, point_type>& bbox)
+{
+    auto& bounds = bbox.bounds();
+
+    auto minX = bounds[0];
+    auto minY = bounds[1];
+    auto maxX = bounds[2];
+    auto maxY = bounds[3];
+
+    auto res = (a[0] >= minX) &&
+        (a[0] <= maxX) &&
+        (a[1] >= minY) &&
+        (a[1] <= maxY);
+    return res;
+}
+
+
+// check if the edge (a,b) doesn't intersect any other edges
+template <typename point_type, typename T, int MAX_CHILDREN>
+    requires details::concepts::Point2Like<point_type>
+bool noIntersections(
+    const point_type& a,
+    const point_type& b,
+    const rtree<T, 2, MAX_CHILDREN, typename CircularElement<Node<point_type, T>>::ptr_type>& segTree)
+{
+    auto minX = std::min(a[0], b[0]);
+    auto minY = std::min(a[1], b[1]);
+    auto maxX = std::max(a[0], b[0]);
+    auto maxY = std::max(a[1], b[1]);
+
+    auto isect = segTree.intersection({minX, minY, maxX, maxY});
+
+    for (decltype(segTree)& ch : isect)
+    {
+        auto elem = ch.data();
+
+        if (details::intersects(elem->data().p, elem->next()->data().p, a, b))
+            return false;
+    }
+
+    return true;
+}
+
 }
 
 template <typename container_type, typename point_type, typename T, int MAX_CHILDREN>
@@ -629,9 +771,9 @@ container_type concaveman(
     T lengthThreshold = 0
 )
 {
-    typedef Node<point_type, T> node_type;
-    typedef CircularElement<node_type> circ_elem_type;
-    typedef CircularList<node_type> circ_list_type;
+    typedef details::Node<point_type, T> node_type;
+    typedef details::CircularElement<node_type> circ_elem_type;
+    typedef details::CircularList<node_type> circ_list_type;
     typedef circ_elem_type* circ_elem_ptr_type;
 
     // exit if hull includes all points already
@@ -643,7 +785,7 @@ container_type concaveman(
     }
 
     // index the points with an R-tree
-    rtree<T, 2, MAX_CHILDREN, point_type> tree;
+    details::rtree<T, 2, MAX_CHILDREN, point_type> tree;
 
     for (auto& p : points)
         tree.insert(p, {p[0], p[1], p[0], p[1]});
@@ -663,7 +805,7 @@ container_type concaveman(
     }
 
     // index the segments with an R-tree (for intersection checks)
-    rtree<T, 2, MAX_CHILDREN, circ_elem_ptr_type> segTree;
+    details::rtree<T, 2, MAX_CHILDREN, circ_elem_ptr_type> segTree;
     for (auto& elem : queue)
     {
         auto& node(elem->data());
@@ -689,7 +831,7 @@ container_type concaveman(
         auto d = elem->next()->next()->data().p;
 
         // skip the edge if it's already short enough
-        auto sqLen = getSqDist(b, c);
+        auto sqLen = details::getSqDist(b, c);
         if (sqLen < sqLenThreshold)
             continue;
 
@@ -700,7 +842,7 @@ container_type concaveman(
         auto p = findCandidate(tree, a, b, c, d, maxSqLen, segTree, ok);
 
         // if we found a connection, and it satisfies our concavity measure
-        if (ok && std::min(getSqDist(p, b), getSqDist(p, c)) <= maxSqLen)
+        if (ok && std::min(details::getSqDist(p, b), details::getSqDist(p, c)) <= maxSqLen)
         {
             // connect the edge endpoints through this point and add 2 new edges to the queue
             queue.push_back(elem);
@@ -839,50 +981,4 @@ auto sqSegBoxDist(
     return std::min(std::min(d1, d2), std::min(d3, d4));
 }
 
-
-template <typename point_type, typename T, int MAX_CHILDREN>
-bool inside(
-    const point_type& a,
-    const rtree<T, 2, MAX_CHILDREN, point_type>& bbox)
-{
-    auto& bounds = bbox.bounds();
-
-    auto minX = bounds[0];
-    auto minY = bounds[1];
-    auto maxX = bounds[2];
-    auto maxY = bounds[3];
-
-    auto res = (a[0] >= minX) &&
-        (a[0] <= maxX) &&
-        (a[1] >= minY) &&
-        (a[1] <= maxY);
-    return res;
-}
-
-
-// check if the edge (a,b) doesn't intersect any other edges
-template <typename point_type, typename T, int MAX_CHILDREN>
-    requires details::concepts::Point2Like<point_type>
-bool noIntersections(
-    const point_type& a,
-    const point_type& b,
-    const rtree<T, 2, MAX_CHILDREN, typename CircularElement<Node<point_type, T>>::ptr_type>& segTree)
-{
-    auto minX = std::min(a[0], b[0]);
-    auto minY = std::min(a[1], b[1]);
-    auto maxX = std::max(a[0], b[0]);
-    auto maxY = std::max(a[1], b[1]);
-
-    auto isect = segTree.intersection({minX, minY, maxX, maxY});
-
-    for (decltype(segTree)& ch : isect)
-    {
-        auto elem = ch.data();
-
-        if (intersects(elem->data().p, elem->next()->data().p, a, b))
-            return false;
-    }
-
-    return true;
-}
 }
