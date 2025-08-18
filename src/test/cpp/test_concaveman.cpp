@@ -9,11 +9,13 @@
 #include <gtest/gtest.h>
 #include <concaveman-cpp/concaveman.h>
 
+using namespace ConcaveMan;
+
 TEST(RtreeTest, basic) {
-    typedef rtree<float, 2, 8, intptr_t> myrtree;
-    typedef rtree<float, 2, 16, intptr_t> myrtree2;
-    typedef rtree<float, 2, 5, intptr_t> myrtree3;
-    typedef rtree<float, 2, 32, intptr_t> myrtree4;
+    typedef details::rtree<float, 2, 8, intptr_t> myrtree;
+    typedef details::rtree<float, 2, 16, intptr_t> myrtree2;
+    typedef details::rtree<float, 2, 5, intptr_t> myrtree3;
+    typedef details::rtree<float, 2, 32, intptr_t> myrtree4;
     myrtree tree;
     myrtree2 tree2;
     myrtree3 tree3;
@@ -47,7 +49,7 @@ TEST(RtreeTest, basic) {
 }
 
 TEST(RtreeTest, erase) {
-    typedef rtree<float, 2, 8, intptr_t> myrtree;
+    typedef details::rtree<float, 2, 8, intptr_t> myrtree;
     myrtree tree;
     EXPECT_NO_THROW(tree.insert(1, { 1, 2, 1, 2 }));
     EXPECT_NO_THROW(tree.insert(2, { 0, 1, 0, 1 }));
@@ -70,29 +72,31 @@ TEST(RtreeTest, erase) {
 //}
 
 TEST(RtreeTest, sqSegDist) {
-    auto a = sqSegDist<double>({ 0, 0 }, { 0, 1 }, { 1, 0 });
+    using T = double;
+    using point_type = std::array<T, 2>;
+    auto a = details::sqSegDist<point_type>({ 0, 0 }, { 0, 1 }, { 1, 0 });
     EXPECT_EQ(a, 0.5);
 
-    auto b = sqSegDist<double>({ 0, 1 }, { 0, 1 }, { 1, 0 });
+    auto b = details::sqSegDist<point_type>({ 0, 1 }, { 0, 1 }, { 1, 0 });
     EXPECT_EQ(b, 0);
 
-    auto c = sqSegDist<double>({ -1, 0 }, { 0, 0 }, { 0, 1 });
+    auto c = details::sqSegDist<point_type>({ -1, 0 }, { 0, 0 }, { 0, 1 });
     EXPECT_EQ(c, 1);
 
-    auto d = sqSegDist<double>({ -1, -1 }, { 0, 0 }, { 0, 1 });
+    auto d = details::sqSegDist<point_type>({ -1, -1 }, { 0, 0 }, { 0, 1 });
     EXPECT_EQ(d, 2);
 }
 
 TEST(RtreeTest, CircularList) {
     typedef double T;
-    typedef Node<T> node_type;
-    typedef node_type::point_type point_type;
-    auto lst = std::make_unique<CircularList<node_type>>();
+    using point_type = std::array<T, 2>;
+    using node_type = details::Node<point_type, T>;
+    auto lst = std::make_unique<details::CircularList<node_type>>();
     auto a = lst->insert(nullptr, point_type { 1, 2 });
     auto b = a->insert(point_type { 3, 4 });
     auto c = b->insert(point_type { 5, 6 });
     {
-        std::unique_ptr<CircularList<node_type>> taker(std::move(lst));
+        std::unique_ptr<details::CircularList<node_type>> taker(std::move(lst));
     }
     EXPECT_EQ(lst.get(), nullptr);
 }
@@ -100,9 +104,10 @@ TEST(RtreeTest, CircularList) {
 
 TEST(RtreeTest, priority_queue) {
     typedef double T;
-    typedef Node<T> node_type;
+    using point_type = std::array<T, 2>;
+    typedef details::Node<point_type, T> node_type;
     typedef std::tuple<T, node_type> tuple_type;
-    std::priority_queue<tuple_type, std::vector<tuple_type>, compare_first<tuple_type>> queue;
+    std::priority_queue<tuple_type, std::vector<tuple_type>, details::compare_first<tuple_type>> queue;
 
     queue.emplace(-5.0, node_type({ 1, 2 }));
     queue.emplace(-4.0, node_type({ 3, 4 }));
@@ -124,9 +129,10 @@ TEST(RtreeTest, priority_queue) {
 
 
 TEST(RtreeTest, concaveman) {
-    typedef double T;
-    typedef std::array<T, 2> point_type;
-    std::vector<point_type> points {
+    using T = double;
+    using P = std::array<T, 2>;
+    using C = std::vector<P>;
+    C points {
         {0, 0},
         {1, 0},
         {0.25, 0.15},
@@ -135,20 +141,39 @@ TEST(RtreeTest, concaveman) {
     std::vector<int> hull {
         0, 1, 3
     };
-    auto concave = concaveman<T, 16>(points, hull, 2, 1);
+    auto concave = concaveman<C, P, T, 16>(points, hull, 2, 1);
+    EXPECT_EQ(concave.size(), points.size());
 }
 
+TEST(RtreeTest, concaveman_compat) {
+    using T = double;
+    using P = std::array<T, 2>;
+    using C = std::vector<P>;
+    C points {
+                    {0, 0},
+                    {1, 0},
+                    {0.25, 0.15},
+                    {1, 1}
+    };
+    std::vector<int> hull {
+        0, 1, 3
+    };
+    auto concave = ConcaveMan::concaveman<T, 16>(points, hull, 2, 1);
+    EXPECT_EQ(concave.size(), points.size());
+}
 
 TEST(RtreeTest, intersects) {
-    EXPECT_EQ(intersects<double>({ 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 }), 0);
-    EXPECT_EQ(intersects<double>({ 0, 0 }, { 1, 0 }, { 0, 0 }, { 1, 0 }), 0);
-    EXPECT_EQ(intersects<double>({ 0, 0 }, { 1, 0 }, { 0.5, -0.5 }, { 0.5, 0.5 }), 1);
+    using point_type = std::array<double, 2>;
+    EXPECT_EQ(details::intersects<point_type>({ 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 }), 0);
+    EXPECT_EQ(details::intersects<point_type>({ 0, 0 }, { 1, 0 }, { 0, 0 }, { 1, 0 }), 0);
+    EXPECT_EQ(details::intersects<point_type>({ 0, 0 }, { 1, 0 }, { 0.5, -0.5 }, { 0.5, 0.5 }), 1);
 }
 
 
 TEST(RtreeTest, orient2d) {
-    EXPECT_EQ(orient2d<double>({ 0, 0 }, { 1, 0 }, { 0, 1 }), -1.);
-    EXPECT_EQ(orient2d<double>({ 0, 0 }, { 1, 0 }, { 0, 0 }), 0);
-    EXPECT_EQ(orient2d<double>({ 0, 0 }, { 1, 0 }, { 0.5, -0.5 }), 0.5);
-    EXPECT_EQ(orient2d<double>({ 0, 1 }, { 1, 0 }, { 0, 0 }), 1.0);
+    using point_type = std::array<double, 2>;
+    EXPECT_EQ(details::orient2d<point_type>({ 0, 0 }, { 1, 0 }, { 0, 1 }), -1.);
+    EXPECT_EQ(details::orient2d<point_type>({ 0, 0 }, { 1, 0 }, { 0, 0 }), 0);
+    EXPECT_EQ(details::orient2d<point_type>({ 0, 0 }, { 1, 0 }, { 0.5, -0.5 }), 0.5);
+    EXPECT_EQ(details::orient2d<point_type>({ 0, 1 }, { 1, 0 }, { 0, 0 }), 1.0);
 }
