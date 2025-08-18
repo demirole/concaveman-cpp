@@ -9,7 +9,7 @@
 #include <gtest/gtest.h>
 #include <concaveman-cpp/concaveman.h>
 
-using namespace ConcaveHull;
+using namespace ConcaveMan;
 
 TEST(RtreeTest, basic) {
     typedef details::rtree<float, 2, 8, intptr_t> myrtree;
@@ -158,7 +158,7 @@ TEST(RtreeTest, concaveman_compat) {
     std::vector<int> hull {
         0, 1, 3
     };
-    auto concave = ConcaveHull::concaveman<T, 16>(points, hull, 2, 1);
+    auto concave = ConcaveMan::concaveman<T, 16>(points, hull, 2, 1);
     EXPECT_EQ(concave.size(), points.size());
 }
 

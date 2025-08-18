@@ -17,7 +17,7 @@
 #include <limits>
 #include <queue>
 
-namespace ConcaveHull
+namespace ConcaveMan
 {
 namespace details
 {
