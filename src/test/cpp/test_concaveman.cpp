@@ -145,6 +145,22 @@ TEST(RtreeTest, concaveman) {
     EXPECT_EQ(concave.size(), points.size());
 }
 
+TEST(RtreeTest, concaveman_compat) {
+    using T = double;
+    using P = std::array<T, 2>;
+    using C = std::vector<P>;
+    C points {
+                    {0, 0},
+                    {1, 0},
+                    {0.25, 0.15},
+                    {1, 1}
+    };
+    std::vector<int> hull {
+        0, 1, 3
+    };
+    auto concave = ConcaveHull::concaveman<T, 16>(points, hull, 2, 1);
+    EXPECT_EQ(concave.size(), points.size());
+}
 
 TEST(RtreeTest, intersects) {
     using point_type = std::array<double, 2>;

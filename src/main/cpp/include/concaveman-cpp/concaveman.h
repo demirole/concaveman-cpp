@@ -884,7 +884,7 @@ template <class T>
 using container_type_compat = std::vector<point_type_compat<T>>;
 
 template <typename T, int MAX_CHILDREN>
-point_type_compat<T> concaveman(
+container_type_compat<T> concaveman(
     const container_type_compat<T>& points,
     // start with a convex hull of the points
     const std::vector<int>& hull,
@@ -894,7 +894,7 @@ point_type_compat<T> concaveman(
     T lengthThreshold = 0
 )
 {
-    return concaveman_impl<container_type_compat<T>, point_type_compat<T>, T, 16>(
+    return concaveman<container_type_compat<T>, point_type_compat<T>, T, 16>(
         points, hull, concavity, lengthThreshold);
 }
 }
